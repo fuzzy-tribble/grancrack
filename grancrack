@@ -1,0 +1,165 @@
+#!/bin/bash
+
+#### UNOFF. STRICT MODE
+set -eo pipefail   # removed -u
+IFS=$'\n\t'
+
+# NTS: Has to work with: 'JerRy47!' and 'L0v3Bella4Evr'
+
+#### CONSTANTS
+
+PROG_NAME=$0
+BANNER=banner.txt
+USAGE=usage.txt
+target_pass=
+hints=
+
+#### FUNCTIONS
+
+banner()
+{
+    cat $BANNER
+}
+
+usage() 
+{
+    cat $USAGE
+}
+
+calc_bruteforce_time()
+{
+    local target_pass=$1
+
+    # Get search space depth
+    local ss_depth=
+    local digit_depth=10
+    local lowercase_letter_depth=26
+    local uppercase_letter_depth=26
+    local symbol_depth=33
+    
+    # has digits?
+    if [[ $target_pass =~ [0-9] ]];then
+        echo "Found digits (adding $digit_depth to search space depth)..."
+        (( ss_depth += digit_depth))
+    fi
+
+    # has lowercase letters?
+    if [[ $target_pass =~ [a-z] ]];then
+        echo "Found lowercase letters (adding $lowercase_letter_depth to search space depth)..."
+        (( ss_depth += lowercase_letter_depth))
+    fi
+
+    # has uppercase letters?
+    if [[ $target_pass =~ [A-Z] ]];then
+        echo "Found uppercase letters (adding $uppercase_letter_depth to search space depth)..."
+        (( ss_depth += uppercase_letter_depth))
+    fi
+
+    # has symbols (non-lettets and non-numbers)?
+    if [[ $target_pass =~ [^A-Za-z0-9] ]];then
+        echo "Found symbols (adding $symbol_depth to search space depth)..."
+        (( ss_depth += symbol_depth))
+    fi
+
+    echo "Search space DEPTH: $ss_depth"
+
+    # Get search space length
+    ss_length=${#target_pass}
+    echo "Search space LENGTH: $ss_length"
+
+    # Get search space size (count all possible passwords with this alphabet size and up to this password's length)
+    ss_size=0
+    for ((i = $ss_length ; i > 0 ; i--)); do
+        (( ss_size += $((ss_depth**$i)) ))
+    done
+    echo "Search space SIZE: $ss_size"
+
+    online_attack=$((ss_size / 1000))
+    offline_attack=$((ss_size / 100000000000))
+    massive_attack=$((ss_size / 100000000000000))
+
+    # Display results
+    # TODO - beautify display (w/ table??)
+    echo "Online attack scenario (1k guesses / second):"
+    displaytime online_attack
+    echo "Offline attack scenario (100b guesses / second):"
+    displaytime offline_attack
+    echo "Massive array attack scenario (100t guesses / second):"
+    displaytime massive_attack
+    echo "*Note that typical attacks will be online password guessing limited to, at most, a few hundred guesses per second*"  
+}
+
+displaytime() 
+{
+  local T=$1
+  local Y=$((T/60/60/24/365))
+  local D=$((T/60/60/24))
+  local H=$((T/60/60%24))
+  local M=$((T/60%60))
+  local S=$((T%60))
+  (( $Y > 0 )) && printf '%d years ' $Y
+  (( $D > 0 )) && printf '%d days ' $D
+  (( $H > 0 )) && printf '%d hours ' $H
+  (( $M > 0 )) && printf '%d minutes ' $M
+  (( $D > 0 || $H > 0 || $M > 0 )) && printf 'and '
+  printf '%d seconds\n' $S
+}
+
+calc_diff() 
+{
+    local target_pass=$1
+    local hints=$2
+
+    # calc closeness to hints example 'poop' & pooP
+    # difference is 1 capital
+    
+    # calc closeness to hints example 'strange' & Strange007!
+    # difference is 1 capital, 3 letters, 1 symbol
+}
+
+#### MAIN
+
+interactive=
+filename=~/sysinfo_page.html
+
+if [ $# -gt 0 ]; then
+    while [ "$1" != "" ]; do
+        case $1 in
+            -t | --target )         shift
+                                    target_pass=$1
+                                    ;;
+            -d | --details )         shift
+                                    target_pass=$1
+                                    ;;
+            -i | --interactive )    interactive=1
+                                    ;;
+            -h | --help )           usage
+                                    exit
+                                    ;;
+            * )                     usage
+                                    exit 1
+        esac
+        shift
+    done
+else
+    interactive=1
+fi
+
+# If running in interactive mode
+if [ "$interactive" = "1" ]; then
+    
+    banner
+
+    echo -n "What is the ancient's password (target password)? > "
+    read target_pass
+    echo -n "Got any hints for me? > "
+    read hints
+    if [[ -z "$hints" && -n "$target_pass" ]]; then
+        calc_diff target_pass hints
+    elif [ -n "$target_pass" ]; then
+        calc_bruteforce_time target_pass
+    else
+        echo "You must enter a target password."
+    fi
+
+fi
