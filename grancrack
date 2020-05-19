@@ -4,8 +4,6 @@
 set -eo pipefail   # removed -u
 IFS=$'\n\t'
 
-# NTS: Has to work with: 'JerRy47!' and 'L0v3Bella4Evr'
-
 #### CONSTANTS
 
 PROG_NAME=$0
@@ -13,6 +11,17 @@ BANNER=banner.txt
 USAGE=usage.txt
 target_pass=
 hints=
+
+NONE='\033[00m'
+RED='\033[01;31m'
+GREEN='\033[01;32m'
+YELLOW='\033[01;33m'
+PURPLE='\033[01;35m'
+CYAN='\033[01;36m'
+WHITE='\033[01;37m'
+BOLD='\033[1m'
+LIGHT='\033[2m'
+UNDERLINE='\033[4m'
 
 #### FUNCTIONS
 
@@ -28,7 +37,8 @@ usage()
 
 calc_bruteforce_time()
 {
-    local target_pass=$1
+    local pass=$1
+    echo -e "${BOLD}Calculating search space size..."
 
     # Get search space depth
     local ss_depth=
@@ -38,45 +48,45 @@ calc_bruteforce_time()
     local symbol_depth=33
     
     # has digits?
-    if [[ $target_pass =~ [0-9] ]];then
-        echo "Found digits (adding $digit_depth to search space depth)..."
+    if [[ $pass =~ [0-9] ]];then
+        echo -e "${LIGHT}Found digits (adding ${digit_depth} to search space depth)"
         (( ss_depth += digit_depth))
     fi
 
     # has lowercase letters?
-    if [[ $target_pass =~ [a-z] ]];then
-        echo "Found lowercase letters (adding $lowercase_letter_depth to search space depth)..."
+    if [[ $pass =~ [a-z] ]];then
+        echo -e "${LIGHT}Found lowercase letters (adding $lowercase_letter_depth to search space depth)..."
         (( ss_depth += lowercase_letter_depth))
     fi
 
     # has uppercase letters?
-    if [[ $target_pass =~ [A-Z] ]];then
-        echo "Found uppercase letters (adding $uppercase_letter_depth to search space depth)..."
+    if [[ $pass =~ [A-Z] ]];then
+        echo -e "${LIGHT}Found uppercase letters (adding $uppercase_letter_depth to search space depth)..."
         (( ss_depth += uppercase_letter_depth))
     fi
 
     # has symbols (non-lettets and non-numbers)?
     if [[ $target_pass =~ [^A-Za-z0-9] ]];then
-        echo "Found symbols (adding $symbol_depth to search space depth)..."
+        echo -e "${LIGHT}Found symbols (adding $symbol_depth to search space depth)..."
         (( ss_depth += symbol_depth))
     fi
 
-    echo "Search space DEPTH: $ss_depth"
+    echo -e "${CYAN}Search space DEPTH: $ss_depth"
 
     # Get search space length
-    ss_length=${#target_pass}
-    echo "Search space LENGTH: $ss_length"
+    local ss_length=${#target_pass}
+    echo -e "${CYAN}Search space LENGTH: $ss_length"
 
     # Get search space size (count all possible passwords with this alphabet size and up to this password's length)
-    ss_size=0
+    local ss_size=0
     for ((i = $ss_length ; i > 0 ; i--)); do
         (( ss_size += $((ss_depth**$i)) ))
     done
-    echo "Search space SIZE: $ss_size"
+    echo -e "${CYAN}Search space SIZE: $ss_size"
 
-    online_attack=$((ss_size / 1000))
-    offline_attack=$((ss_size / 100000000000))
-    massive_attack=$((ss_size / 100000000000000))
+    local online_attack=$((ss_size / 1000))
+    local offline_attack=$((ss_size / 100000000000))
+    local massive_attack=$((ss_size / 100000000000000))
 
     # Display results
     # TODO - beautify display (w/ table??)
@@ -105,16 +115,32 @@ displaytime()
   printf '%d seconds\n' $S
 }
 
-calc_diff() 
+get_diff() 
 {
-    local target_pass=$1
+    local pass=$1
     local hints=$2
 
-    # calc closeness to hints example 'poop' & pooP
-    # difference is 1 capital
-    
-    # calc closeness to hints example 'strange' & Strange007!
-    # difference is 1 capital, 3 letters, 1 symbol
+    # lowercase password and hints
+    local pass_low="$(tr [A-Z] [a-z] <<< "$pass")"
+    local hints_low="$(tr [A-Z] [a-z] <<< "$hints")"
+
+    echo "Here is the lowercase pasword: $pass_low"
+    echo "Here is the lowercase hints: $hints_low"
+
+    # substituted password and hints
+    local pass_subs="$(tr '0378951' 'oetbgsl' <<< "$pass_low")"
+    local hints_subs="$(tr '0378951' 'oetbgsl' <<< "$hints_low")"
+
+    # create regex from hints list
+    local hint_regex="$(tr ' ' '\b|' <<< "$hints_subs")"
+    echo $hint_regex
+
+    # collapse (subtract hints from pass)
+    local remaining_pass="$(sed 's/$hint_regex//g' <<< "$pass_subs")"
+    echo $remaining_pass
+
+    echo -e "Bruteforce password search space collapsed from $pass to $remaining_pass based on hints provided"
+    calc_bruteforce_time remaining_pass
 }
 
 #### MAIN
@@ -147,19 +173,22 @@ fi
 
 # If running in interactive mode
 if [ "$interactive" = "1" ]; then
-    
+
     banner
 
-    echo -n "What is the ancient's password (target password)? > "
-    read target_pass
-    echo -n "Got any hints for me? > "
-    read hints
-    if [[ -z "$hints" && -n "$target_pass" ]]; then
-        calc_diff target_pass hints
-    elif [ -n "$target_pass" ]; then
-        calc_bruteforce_time target_pass
-    else
-        echo "You must enter a target password."
-    fi
+    while [[ -z "$target_pass" ]]; do
+        echo -n "What is the ancient's password (required)? > "
+        read target_pass
+    done
 
+    echo -n "Got any hints for me (optional)? > "
+    read hints
+
+    if [ -z "$hints" ]; then
+        echo -e "Calculating time for ${BOLD}$target_pass${NONE} with no hints (bruteforce time)${NONE}"
+        calc_bruteforce_time "$target_pass"
+    else
+        echo -e "Calculating time for ${BOLD}$target_pass${NONE} with hints: ${BOLD}$hints${NONE}"
+        get_diff "$target_pass" "$hints"
+    fi
 fi

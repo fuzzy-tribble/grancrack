@@ -1,1 +1,28 @@
-Grancrack is TODO
+Grancrack was written to go with the Medium post: 
+"A How-To Guide: Convincing your ancient(s) to practice good security"
+
+---------------------------------
+
+Running ./grancrack will start interactive mode by default. 
+You will then be prompted for a target password and then any hints you would like to give.
+
+Example 1: Lets say your ancient Jerry thinks his password is super clever. 
+./grancrack
+What is the ancient's password (required)? > JerRy47
+Got any hints for me (optional)? > jerry
+
+Example 2: Lets say your ancient thinks using her dogs name with number/letter replacements is clever.
+./grancrack
+What is the ancient's password (required)? > L0v3Bella4Evr
+Got any hints for me (optional)? > love bella
+
+---------------------------------
+
+LIMITATIONS OF THIS SCRIPT
+- This is NOT a password strength calculator (refer to the medium article for recomendations on those)
+- It has NOT been tested extensively for long or obscure passwords or ones not in English
+- TBD
+
+WRITTEN & TESTED WITH:
+zsh 5.7.1
+GNU bash, version 3.2.57(1)-release
