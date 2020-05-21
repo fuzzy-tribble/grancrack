@@ -64,10 +64,6 @@ display_results()
 
     printTable ',' "HEADER 1,HEADER 2, HEADER3\ndata 1,data 2,data 3"
 
-    # (printf "SCENARIO | NO HINTS | HINTS\n" ; \
-    #  printf "Online Attack | TODO | TODO\n" ; \
-    #  printf "Offline Attack | TODO | TODO\n" ; \
-    #  printf "Massive Array Attack | poop | poopy\n") | column -t -s "|"
     echo -e $DISCLAIMER
 
 }

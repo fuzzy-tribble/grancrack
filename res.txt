@@ -1,0 +1,4 @@
+Scenario|Cracktime  with NO HINTS| Cracktime with hints
+Online Attack (1k guesses / second)|10min|10min
+Offline attack scenario (100b guesses / second)|10min|10min
+Massive array attack scenario (100t guesses / second)|10min|10min
