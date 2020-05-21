@@ -3,27 +3,49 @@
 #### UNOFF. STRICT MODE
 set -eo pipefail   # removed -u
 IFS=$'\n\t'
+# -e -> fail on first error
+
+#### UTILS
+source util.bash
 
 #### CONSTANTS
 
-PROG_NAME=$0
+DEBUG=1
+
+SCRIPT_ARGS="$@"
+SCRIPT_NAME="$0"
+
 BANNER=banner.txt
 USAGE=usage.txt
 target_pass=
 hints=
 
-NONE='\033[00m'
-RED='\033[01;31m'
-GREEN='\033[01;32m'
-YELLOW='\033[01;33m'
-PURPLE='\033[01;35m'
-CYAN='\033[01;36m'
-WHITE='\033[01;37m'
-BOLD='\033[1m'
-LIGHT='\033[2m'
-UNDERLINE='\033[4m'
+NONE="\033[00m"
+RED="\033[01;31m"
+GREEN="\033[01;32m"
+YELLOW="\033[01;33m"
+PURPLE="\033[01;35m"
+CYAN="\033[01;36m"
+WHITE="\033[01;37m"
+BOLD="\033[1m"
+LIGHT="\033[2m"
+UNDERLINE="\033[4m"
+
+DISCLAIMER="\n\n${RED}DISCLAIMERS
+ \n - This is NOT a password strength calculator (it just calculates search space size for a provided password with or without hints)
+ \n - If you DO NOT PROVIDE HINTS then the search space size will be calculated as if the password were going to be bruteforced.
+ \n - If you PROVIDE HINTS then the search space size will be collapsed based on the hints provided then whatever is remaining will be calculated as if the password were going to be bruteforces.
+ \n - Typical attacks will be online password guessing and they are sometimes limited based on security measures on the server not taken into account here.
+ \n\n${NONE}"
 
 #### FUNCTIONS
+
+if [ $DEBUG -eq "1" ]; then
+    echo -e "${RED}DEBUG FLAG: ON${NONE}";
+    dbg () { echo -e "${WHITE}[$(date +"%Y-%m-%d %H:%M:%S %Z")] [DEBUG] $1 ${NONE}"; }
+else
+    dbg () { :; }
+fi
 
 banner()
 {
@@ -35,10 +57,27 @@ usage()
     cat $USAGE
 }
 
+display_results()
+{
+    local pass=$1
+    local hints=$2
+
+    printTable ',' "HEADER 1,HEADER 2, HEADER3\ndata 1,data 2,data 3"
+
+    # (printf "SCENARIO | NO HINTS | HINTS\n" ; \
+    #  printf "Online Attack | TODO | TODO\n" ; \
+    #  printf "Offline Attack | TODO | TODO\n" ; \
+    #  printf "Massive Array Attack | poop | poopy\n") | column -t -s "|"
+    echo -e $DISCLAIMER
+
+}
+
 calc_bruteforce_time()
 {
     local pass=$1
-    echo -e "${BOLD}Calculating search space size..."
+    # TODO - test for input of 0
+    # TODO - test for max reasonable input size to calc with
+    echo -e "${YELLOW}Estimating CRACK TIME for ${RED}$pass${NONE} based on search space size${NONE}"
 
     # Get search space depth
     local ss_depth=
@@ -49,54 +88,54 @@ calc_bruteforce_time()
     
     # has digits?
     if [[ $pass =~ [0-9] ]];then
-        echo -e "${LIGHT}Found digits (adding ${digit_depth} to search space depth)"
+        dbg "Found digits (adding ${digit_depth} to search space depth)"
         (( ss_depth += digit_depth))
     fi
 
     # has lowercase letters?
     if [[ $pass =~ [a-z] ]];then
-        echo -e "${LIGHT}Found lowercase letters (adding $lowercase_letter_depth to search space depth)..."
+        dbg "Found lowercase letters (adding $lowercase_letter_depth to search space depth)"
         (( ss_depth += lowercase_letter_depth))
     fi
 
     # has uppercase letters?
     if [[ $pass =~ [A-Z] ]];then
-        echo -e "${LIGHT}Found uppercase letters (adding $uppercase_letter_depth to search space depth)..."
+        dbg "Found uppercase letters (adding $uppercase_letter_depth to search space depth)"
         (( ss_depth += uppercase_letter_depth))
     fi
 
     # has symbols (non-lettets and non-numbers)?
     if [[ $target_pass =~ [^A-Za-z0-9] ]];then
-        echo -e "${LIGHT}Found symbols (adding $symbol_depth to search space depth)..."
+        dbg "Found symbols (adding $symbol_depth to search space depth)..."
         (( ss_depth += symbol_depth))
     fi
 
-    echo -e "${CYAN}Search space DEPTH: $ss_depth"
-
     # Get search space length
     local ss_length=${#target_pass}
-    echo -e "${CYAN}Search space LENGTH: $ss_length"
 
     # Get search space size (count all possible passwords with this alphabet size and up to this password's length)
     local ss_size=0
     for ((i = $ss_length ; i > 0 ; i--)); do
         (( ss_size += $((ss_depth**$i)) ))
     done
-    echo -e "${CYAN}Search space SIZE: $ss_size"
+
+    dbg "Search space DEPTH / LENGTH / SIZE: $ss_depth / $ss_length / $ss_size"
 
     local online_attack=$((ss_size / 1000))
     local offline_attack=$((ss_size / 100000000000))
     local massive_attack=$((ss_size / 100000000000000))
 
     # Display results
-    # TODO - beautify display (w/ table??)
-    echo "Online attack scenario (1k guesses / second):"
+    # TODO - write results to file then create pretty table display
+    # cat res.csv | column -t
+    
+    echo -e "${YELLOW}Online attack scenario (1k guesses / second):"
     displaytime online_attack
-    echo "Offline attack scenario (100b guesses / second):"
+    echo -e "Offline attack scenario (100b guesses / second):"
     displaytime offline_attack
-    echo "Massive array attack scenario (100t guesses / second):"
+    echo -e "Massive array attack scenario (100t guesses / second):"
     displaytime massive_attack
-    echo "*Note that typical attacks will be online password guessing limited to, at most, a few hundred guesses per second*"  
+    echo -e "*Note that typical attacks will be online password guessing limited to, at most, a few hundred guesses per second*"  
 }
 
 displaytime() 
@@ -120,26 +159,35 @@ get_diff()
     local pass=$1
     local hints=$2
 
+    echo -e "${YELLOW}Using the following hints to try and collapse search space size: $hints${NONE}"
+
     # lowercase password and hints
     local pass_low="$(tr [A-Z] [a-z] <<< "$pass")"
     local hints_low="$(tr [A-Z] [a-z] <<< "$hints")"
-
-    echo "Here is the lowercase pasword: $pass_low"
-    echo "Here is the lowercase hints: $hints_low"
 
     # substituted password and hints
     local pass_subs="$(tr '0378951' 'oetbgsl' <<< "$pass_low")"
     local hints_subs="$(tr '0378951' 'oetbgsl' <<< "$hints_low")"
 
+    dbg "pass: $pass -> $pass_low -> $pass_subs"
+    dbg "hints: $hints -> $hints_low -> $hints_subs"
+
     # create regex from hints list
-    local hint_regex="$(tr ' ' '\b|' <<< "$hints_subs")"
-    echo $hint_regex
+    # TODO - fig out how to do this without a loop (1 sed expression)
+    local hint_regex="($(sed -E 's# #|#g' <<< "$hints_subs"))*"
+
+    dbg "hint_regex: $hint_regex"
 
     # collapse (subtract hints from pass)
-    local remaining_pass="$(sed 's/$hint_regex//g' <<< "$pass_subs")"
-    echo $remaining_pass
+    local remaining_pass="$(sed -E "s/${hint_regex}//g" <<< "$pass_subs")"
+    
+    dbg "remaining_pass: $remaining_pass"
 
-    echo -e "Bruteforce password search space collapsed from $pass to $remaining_pass based on hints provided"
+    echo -e "${YELLOW}With the hints provided the search space for password ${CYAN}$pass${YELLOW} can be collapsed to ${CYAN}$remaining_pass${NONE}"
+
+    echo -e "Crack time if NO HINTS WERE GIVEN"
+    calc_bruteforce_time pass
+    echo -e "Crack time with hints provided"
     calc_bruteforce_time remaining_pass
 }
 
@@ -152,9 +200,6 @@ if [ $# -gt 0 ]; then
     while [ "$1" != "" ]; do
         case $1 in
             -t | --target )         shift
-                                    target_pass=$1
-                                    ;;
-            -d | --details )         shift
                                     target_pass=$1
                                     ;;
             -i | --interactive )    interactive=1
@@ -177,18 +222,19 @@ if [ "$interactive" = "1" ]; then
     banner
 
     while [[ -z "$target_pass" ]]; do
-        echo -n "What is the ancient's password (required)? > "
+        echo -ne "${BOLD}What is the ancient's password (required)? > ${NONE}"
         read target_pass
     done
 
-    echo -n "Got any hints for me (optional)? > "
+    echo -ne "${BOLD}Got any hints for me (optional)? > ${NONE}"
     read hints
 
     if [ -z "$hints" ]; then
-        echo -e "Calculating time for ${BOLD}$target_pass${NONE} with no hints (bruteforce time)${NONE}"
-        calc_bruteforce_time "$target_pass"
+        echo -e "${YELLOW}Estimating CRACK TIME for ${PURPLE}$target_pass${NONE} ${YELLOW}(based on search space size)${NONE}"
+        # calc_bruteforce_time "$target_pass"
+        display_results $target_pass $hints
     else
-        echo -e "Calculating time for ${BOLD}$target_pass${NONE} with hints: ${BOLD}$hints${NONE}"
+        echo -e "${YELLOW}Estimating CRACK TIME for ${PURPLE}$target_pass${NONE} ${YELLOW}(based on search space size)${NONE}"
         get_diff "$target_pass" "$hints"
     fi
 fi
