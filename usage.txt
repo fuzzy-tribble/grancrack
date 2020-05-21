@@ -1,5 +1,4 @@
-Grancrack was written to go with the Medium post: 
-"A How-To Guide: Convincing your ancient(s) to practice good security"
+Grancrack was written to go with this Medium post: "A How-To Guide: Convincing your ancient(s) to practice good security"
 
 ---------------------------------
 
@@ -21,8 +20,8 @@ Got any hints for me (optional)? > love bella
 LIMITATIONS OF THIS SCRIPT
 - This is NOT a password strength calculator (refer to the medium article for recomendations on those)
 - It has NOT been tested extensively for long or obscure passwords or ones not in English
-- TBD
+- Its just for fun, so chill
 
-WRITTEN & TESTED WITH:
+WRITTEN & TESTED ON OSX WITH:
 zsh 5.7.1
 GNU bash, version 3.2.57(1)-release
