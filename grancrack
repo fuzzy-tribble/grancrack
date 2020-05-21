@@ -49,6 +49,7 @@ fi
 
 banner()
 {
+    # echo -e "${YELLOW}$(cat $BANNER)${NONE}"
     cat $BANNER
 }
 
@@ -61,8 +62,22 @@ display_results()
 {
     local pass=$1
     local hints=$2
+    local header="SCENARIO,CRACKTIME EST. W/O HINTS, CRACKTIME EST. W/ HINTS"
+    
+    local rc_11="10 min 5 sec"
+    local rc_12="10 min 5 sec"
+    local rc_21="10 min 5 sec"
+    local rc_22="10 min 5 sec"
+    local rc_31="10 min 5 sec"
+    local rc_32="no hints provided"
+    
+    local row1="ONLINE ATTACK,$rc11,$rc12"
+    local row2="OFFLINE ATTACK,$rc21,$rc22"
+    local row3="MASSIVE ARRAY ATTACK,$rc31,$rc32"
 
-    printTable ',' "HEADER 1,HEADER 2, HEADER3\ndata 1,data 2,data 3"
+    printf "\n${WHITE}Target Password: ${CYAN}$pass${NONE}\n\n${WHITE}Hints: ${CYAN}$hints${NONE}\n\n"
+
+    printTable ',' "$header\n$row1\n$row2\n$row3"
 
     echo -e $DISCLAIMER
 
@@ -218,19 +233,17 @@ if [ "$interactive" = "1" ]; then
     banner
 
     while [[ -z "$target_pass" ]]; do
-        echo -ne "${BOLD}What is the ancient's password (required)? > ${NONE}"
+        echo -ne "${YELLOW}What is the ancient's password (required)? > ${NONE}"
         read target_pass
     done
 
-    echo -ne "${BOLD}Got any hints for me (optional)? > ${NONE}"
+    echo -ne "${YELLOW}Got any hints for me (optional)? > ${NONE}"
     read hints
 
     if [ -z "$hints" ]; then
-        echo -e "${YELLOW}Estimating CRACK TIME for ${PURPLE}$target_pass${NONE} ${YELLOW}(based on search space size)${NONE}"
         # calc_bruteforce_time "$target_pass"
         display_results $target_pass $hints
     else
-        echo -e "${YELLOW}Estimating CRACK TIME for ${PURPLE}$target_pass${NONE} ${YELLOW}(based on search space size)${NONE}"
         get_diff "$target_pass" "$hints"
     fi
 fi
