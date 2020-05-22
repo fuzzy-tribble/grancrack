@@ -14,3 +14,5 @@ Run it (use `--help` or `-h` for help)
 ```bash
 ./grancrack
 ```
+
+![usage screenshot](example_screenshot.png)
