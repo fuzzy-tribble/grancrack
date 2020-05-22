@@ -17,8 +17,18 @@ SCRIPT_NAME="$0"
 
 BANNER=banner.txt
 USAGE=usage.txt
+
 target_pass=
 hints=
+res_11=
+res_12=
+res_21=
+res_22=
+res_31=
+res_32=
+online_attack=
+offline_attack=
+massive_attack=
 
 NONE="\033[00m"
 RED="\033[01;31m"
@@ -35,6 +45,9 @@ DISCLAIMER="\n\n${RED}DISCLAIMERS
  \n - This is NOT a password strength calculator (it just calculates search space size for a provided password with or without hints)
  \n - If you DO NOT PROVIDE HINTS then the search space size will be calculated as if the password were going to be bruteforced.
  \n - If you PROVIDE HINTS then the search space size will be collapsed based on the hints provided then whatever is remaining will be calculated as if the password were going to be bruteforces.
+ \n\n - The ONLINE ATTACK SCENARIO assumes 1k guesses / second.
+ \n - The OFFLINE ATTACK SCENARIO assumes 100 billion guesses / second.
+ \n - The MASSIVE DISTRIBUTED ATTACK SCENARIO assumes 100 trillion guesses / second.
  \n - Typical attacks will be online password guessing and they are sometimes limited based on security measures on the server not taken into account here.
  \n\n${NONE}"
 
@@ -63,32 +76,37 @@ display_results()
     local pass=$1
     local hints=$2
     local header="SCENARIO,CRACKTIME EST. W/O HINTS, CRACKTIME EST. W/ HINTS"
+
+    calc_search_space $pass
+    res_11=$(displaytime $online_attack)
+    res_21=$(displaytime $offline_attack)
+    res_31=$(displaytime $massive_attack)
+    if [ -z "$hints" ]; then
+        res_12="no hints provided"
+        res_22="no hints provided"
+        res_32="no hints provided"
+    else
+        get_diff $pass $hints
+        res_12=$(displaytime $online_attack)
+        res_22=$(displaytime $offline_attack)
+        res_32=$(displaytime $massive_attack)
+    fi
     
-    local rc_11="10 min 5 sec"
-    local rc_12="10 min 5 sec"
-    local rc_21="10 min 5 sec"
-    local rc_22="10 min 5 sec"
-    local rc_31="10 min 5 sec"
-    local rc_32="no hints provided"
-    
-    local row1="ONLINE ATTACK,$rc11,$rc12"
-    local row2="OFFLINE ATTACK,$rc21,$rc22"
-    local row3="MASSIVE ARRAY ATTACK,$rc31,$rc32"
+    local row1="ONLINE ATTACK,$res_11,$res_12"
+    local row2="OFFLINE ATTACK,$res_21,$res_22"
+    local row3="MASSIVE ARRAY ATTACK,$res_31,$res_32"
 
     printf "\n${WHITE}Target Password: ${CYAN}$pass${NONE}\n\n${WHITE}Hints: ${CYAN}$hints${NONE}\n\n"
-
     printTable ',' "$header\n$row1\n$row2\n$row3"
-
     echo -e $DISCLAIMER
-
 }
 
-calc_bruteforce_time()
+calc_search_space()
 {
     local pass=$1
-    # TODO - test for input of 0
+    # TODO - test for input of nothing or len 1,2
     # TODO - test for max reasonable input size to calc with
-    echo -e "${YELLOW}Estimating CRACK TIME for ${RED}$pass${NONE} based on search space size${NONE}"
+    dbg "Estimating CRACK TIME for $pass"
 
     # Get search space depth
     local ss_depth=
@@ -122,7 +140,7 @@ calc_bruteforce_time()
     fi
 
     # Get search space length
-    local ss_length=${#target_pass}
+    local ss_length=${#pass}
 
     # Get search space size (count all possible passwords with this alphabet size and up to this password's length)
     local ss_size=0
@@ -132,21 +150,9 @@ calc_bruteforce_time()
 
     dbg "Search space DEPTH / LENGTH / SIZE: $ss_depth / $ss_length / $ss_size"
 
-    local online_attack=$((ss_size / 1000))
-    local offline_attack=$((ss_size / 100000000000))
-    local massive_attack=$((ss_size / 100000000000000))
-
-    # Display results
-    # TODO - write results to file then create pretty table display
-    # cat res.csv | column -t
-    
-    echo -e "${YELLOW}Online attack scenario (1k guesses / second):"
-    displaytime online_attack
-    echo -e "Offline attack scenario (100b guesses / second):"
-    displaytime offline_attack
-    echo -e "Massive array attack scenario (100t guesses / second):"
-    displaytime massive_attack
-    echo -e "*Note that typical attacks will be online password guessing limited to, at most, a few hundred guesses per second*"  
+    online_attack=$((ss_size / 1000))
+    offline_attack=$((ss_size / 100000000000))
+    massive_attack=$((ss_size / 100000000000000))
 }
 
 displaytime() 
@@ -170,7 +176,7 @@ get_diff()
     local pass=$1
     local hints=$2
 
-    echo -e "${YELLOW}Using the following hints to try and collapse search space size: $hints${NONE}"
+    dbg "Using the following hints to try and collapse search space size: $hints"
 
     # lowercase password and hints
     local pass_low="$(tr [A-Z] [a-z] <<< "$pass")"
@@ -194,12 +200,10 @@ get_diff()
     
     dbg "remaining_pass: $remaining_pass"
 
-    echo -e "${YELLOW}With the hints provided the search space for password ${CYAN}$pass${YELLOW} can be collapsed to ${CYAN}$remaining_pass${NONE}"
+    # TODO - if letters <-> numbers then put some nums back
 
-    echo -e "Crack time if NO HINTS WERE GIVEN"
-    calc_bruteforce_time pass
-    echo -e "Crack time with hints provided"
-    calc_bruteforce_time remaining_pass
+    dbg "With the hints provided the search space for password $pass can be collapsed to $remaining_pass"
+    calc_search_space $remaining_pass
 }
 
 #### MAIN
@@ -233,17 +237,12 @@ if [ "$interactive" = "1" ]; then
     banner
 
     while [[ -z "$target_pass" ]]; do
-        echo -ne "${YELLOW}What is the ancient's password (required)? > ${NONE}"
+        echo -ne "What is the ancient's password (required)? > "
         read target_pass
     done
 
-    echo -ne "${YELLOW}Got any hints for me (optional)? > ${NONE}"
+    echo -ne "Got any hints for me (optional)? > "
     read hints
 
-    if [ -z "$hints" ]; then
-        # calc_bruteforce_time "$target_pass"
-        display_results $target_pass $hints
-    else
-        get_diff "$target_pass" "$hints"
-    fi
+    display_results $target_pass $hints
 fi
