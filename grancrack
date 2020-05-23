@@ -191,6 +191,7 @@ get_diff()
     dbg "Using the following hints to try and collapse search space size: $hints"
 
     # BSD SED SUCKS!!!!! No case insensitive matching :( WANT GNU SED *cry*
+    # TODO - find a less shitty way to do this
     local hint_regex="($(sed -E 's# #|#g' <<< "$hints"))*"
     dbg "hint_regex: $hint_regex"
     while IFS= read n; do
