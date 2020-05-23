@@ -17,6 +17,7 @@ SCRIPT_NAME="$0"
 
 BANNER=banner.txt
 USAGE=usage.txt
+SUBS=subs.txt
 
 target_pass=
 hints=
@@ -24,7 +25,6 @@ online_attack=
 offline_attack=
 massive_attack=
 
-# TODO - apparently colors don't show for everyone...look into it
 NONE="\033[00m"
 RED="\033[01;31m"
 GREEN="\033[01;32m"
@@ -138,13 +138,23 @@ calc_search_space()
 
     # Get search space size (count all possible passwords with this alphabet size and up to this password's length)
     local ss_size=0
-    for ((i = $ss_length ; i > 0 ; i--)); do
-        (( ss_size += $((ss_depth**$i)) ))
+    local tmp=
+    # TODO - find a less shitty way to do this
+    for ((i=$ss_length ; i>0 ; i--)); do
+        tmp=$((ss_depth**$i))
+        if [ $tmp -lt 0 ]; then
+            ss_size=-1
+            dbg "Search space size is longer than bash can calc w/o o'flow"
+            break
+        else
+            (( ss_size += $tmp ))
+            if [ $ss_size -lt 0 ]; then
+                ss_size=-1
+                dbg "Search space size is longer than bash can calc w/o o'flow"
+                break
+            fi
+        fi
     done
-
-    if [ $ss_size -lt 0 ]; then
-        dbg "Search space size is longer than bash can calc w/o o'flow"
-    fi
 
     dbg "Search space DEPTH / LENGTH / SIZE: $ss_depth / $ss_length / $ss_size"
 
@@ -156,7 +166,7 @@ calc_search_space()
 displaytime() 
 {
   local T=$1
-  if [ $T -lt 0 ]; then
+  if [ $T -le 0 ]; then
     printf "A really long time (longer than bash can calc w/o o'flow)"
   else
     local Y=$((T/60/60/24/365))
@@ -180,29 +190,19 @@ get_diff()
 
     dbg "Using the following hints to try and collapse search space size: $hints"
 
-    # lowercase password and hints
-    local pass_low="$(tr [A-Z] [a-z] <<< "$pass")"
-    local hints_low="$(tr [A-Z] [a-z] <<< "$hints")"
-
-    # substituted password and hints
-    local pass_subs="$(tr '0378951' 'oetbgsl' <<< "$pass_low")"
-    local hints_subs="$(tr '0378951' 'oetbgsl' <<< "$hints_low")"
-
-    dbg "pass: $pass -> $pass_low -> $pass_subs"
-    dbg "hints: $hints -> $hints_low -> $hints_subs"
-
-    # create regex from hints list
-    # TODO - fig out how to do this without a loop (1 sed expression)
-    local hint_regex="($(sed -E 's# #|#g' <<< "$hints_subs"))*"
-
+    # BSD SED SUCKS!!!!! No case insensitive matching :( WANT GNU SED *cry*
+    local hint_regex="($(sed -E 's# #|#g' <<< "$hints"))*"
+    dbg "hint_regex: $hint_regex"
+    while IFS= read n; do
+        hint_regex="$(sed -E $n <<< "$hint_regex")"
+    done < $SUBS
+    
     dbg "hint_regex: $hint_regex"
 
     # collapse (subtract hints from pass)
-    local remaining_pass="$(sed -E "s/${hint_regex}//g" <<< "$pass_subs")"
+    local remaining_pass="$(sed -E "s/${hint_regex}//g" <<< "$pass")"
     
     dbg "remaining_pass: $remaining_pass"
-
-    # TODO - if letters <-> numbers then put some nums back
 
     dbg "With the hints provided the search space for password $pass can be collapsed to $remaining_pass"
     calc_search_space $remaining_pass
