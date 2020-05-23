@@ -20,16 +20,11 @@ USAGE=usage.txt
 
 target_pass=
 hints=
-res_11=
-res_12=
-res_21=
-res_22=
-res_31=
-res_32=
 online_attack=
 offline_attack=
 massive_attack=
 
+# TODO - apparently colors don't show for everyone...look into it
 NONE="\033[00m"
 RED="\033[01;31m"
 GREEN="\033[01;32m"
@@ -78,14 +73,13 @@ display_results()
     local header="SCENARIO,CRACKTIME EST. W/O HINTS, CRACKTIME EST. W/ HINTS"
 
     calc_search_space $pass
-    res_11=$(displaytime $online_attack)
-    res_21=$(displaytime $offline_attack)
-    res_31=$(displaytime $massive_attack)
-    if [ -z "$hints" ]; then
-        res_12="no hints provided"
-        res_22="no hints provided"
-        res_32="no hints provided"
-    else
+    local res_11=$(displaytime $online_attack)
+    local res_21=$(displaytime $offline_attack)
+    local res_31=$(displaytime $massive_attack)
+    local res_12="no hints provided"
+    local res_22="no hints provided"
+    local res_32="no hints provided"
+    if [ -n "$hints" ]; then
         get_diff $pass $hints
         res_12=$(displaytime $online_attack)
         res_22=$(displaytime $offline_attack)
@@ -148,6 +142,10 @@ calc_search_space()
         (( ss_size += $((ss_depth**$i)) ))
     done
 
+    if [ $ss_size -lt 0 ]; then
+        dbg "Search space size is longer than bash can calc w/o o'flow"
+    fi
+
     dbg "Search space DEPTH / LENGTH / SIZE: $ss_depth / $ss_length / $ss_size"
 
     online_attack=$((ss_size / 1000))
@@ -158,17 +156,21 @@ calc_search_space()
 displaytime() 
 {
   local T=$1
-  local Y=$((T/60/60/24/365))
-  local D=$((T/60/60/24))
-  local H=$((T/60/60%24))
-  local M=$((T/60%60))
-  local S=$((T%60))
-  (( $Y > 0 )) && printf '%d years ' $Y
-  (( $D > 0 )) && printf '%d days ' $D
-  (( $H > 0 )) && printf '%d hours ' $H
-  (( $M > 0 )) && printf '%d minutes ' $M
-  (( $D > 0 || $H > 0 || $M > 0 )) && printf 'and '
-  printf '%d seconds\n' $S
+  if [ $T -lt 0 ]; then
+    printf "A really long time (longer than bash can calc w/o o'flow)"
+  else
+    local Y=$((T/60/60/24/365))
+    local D=$((T/60/60/24))
+    local H=$((T/60/60%24))
+    local M=$((T/60%60))
+    local S=$((T%60))
+    (( $Y > 0 )) && printf '%d years ' $Y
+    (( $D > 0 )) && printf '%d days ' $D
+    (( $H > 0 )) && printf '%d hours ' $H
+    (( $M > 0 )) && printf '%d minutes ' $M
+    (( $D > 0 || $H > 0 || $M > 0 )) && printf 'and '
+    printf '%d seconds\n' $S
+  fi
 }
 
 get_diff() 
